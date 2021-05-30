@@ -1,0 +1,13 @@
+
+services:
+    ml_deploy_service:
+        build: .
+        ports:
+            - 8080:8080
+        entrypoint: 
+            - uvicorn
+            - main:app
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8080"

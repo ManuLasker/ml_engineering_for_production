@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse, RedirectResponse
 
 class Model(str, Enum):
     yolov3tiny = "yolov3-tiny"
-    yolov3 = "yolov3"
+    # yolov3 = "yolov3"
     
     
 def handle_file_name(image_file: UploadFile = File(...)) -> UploadFile:
@@ -27,7 +27,7 @@ def handle_file_name(image_file: UploadFile = File(...)) -> UploadFile:
     
 def download_yolo_files():
     dummy_image = cv2.imread("images/apple.jpg")
-    bbox, label, conf = cv.detect_common_objects(dummy_image, model=Model.yolov3)
+    # bbox, label, conf = cv.detect_common_objects(dummy_image, model=Model.yolov3)
     bbox, label, conf = cv.detect_common_objects(dummy_image, model=Model.yolov3tiny)
     print(os.getcwd())
     os.makedirs("images_uploaded",

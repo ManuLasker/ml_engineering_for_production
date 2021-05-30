@@ -6,6 +6,7 @@ import cvlib as cv
 import uuid
 from cvlib.object_detection import draw_bbox
 from enum import Enum
+from functools import partial
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.responses import StreamingResponse, RedirectResponse
 
@@ -29,23 +30,37 @@ def download_yolo_files():
     dummy_image = cv2.imread("images/apple.jpg")
     # bbox, label, conf = cv.detect_common_objects(dummy_image, model=Model.yolov3)
     bbox, label, conf = cv.detect_common_objects(dummy_image, model=Model.yolov3tiny)
-    print(os.getcwd())
     os.makedirs("images_uploaded",
                 exist_ok=True)
+        
+def validate(name:str, val: float):
+    if val <= 1.0 and val>=0:
+        return val
+    raise HTTPException(status_code=415,
+                        detail=f"{name} need to be a value from 0.0 to 1.0")
+    
+def validate_conf(name: str, min_conf: float):
+    return validate(name, min_conf)
 
+def validate_iou(name: str, min_iou: float):
+    return validate(name, min_iou)
+
+    
 download_yolo_files()
 
 app = FastAPI(title = "Deploying a ML Model with FastAPI")
 
 
-    
+
 @app.get("/", include_in_schema=False)
 def docs_redirect():
     prefix = os.getenv("CLUSTER_ROUTE_PREFIX", "").strip("/")
     return RedirectResponse(prefix + "/docs")
 
 @app.post("/predict")
-def predict(model: Model, image_file: UploadFile = Depends(handle_file_name)):
+def predict(model: Model, min_conf: float = Depends(partial(validate_conf, "min_conf")),
+            min_iou: float = Depends(partial(validate_iou, "min_iou")),
+            image_file: UploadFile = Depends(handle_file_name)):
     # 2. Transform raw image into cv2 image
     # Read image as a stream of bytes
     image_stream = io.BytesIO(image_file.file.read())
@@ -58,13 +73,13 @@ def predict(model: Model, image_file: UploadFile = Depends(handle_file_name)):
     
     # 3. Run Object detection model
     # run object detection model
-    bbox, label, conf = cv.detect_common_objects(image, model=model)
+    bbox, label, conf = cv.detect_common_objects(image, confidence=min_conf,
+                                                 nms_thresh=min_iou, model=model)
     # create image that includes bounding box boxes and labels   
     output_image = draw_bbox(image, bbox, label, conf)
     # Save it in a folder within the server
     filename = uuid.uuid1().hex + "_{}.jpg"
     cv2.imwrite(f"images_uploaded/{filename.format('out')}", output_image)
-    cv2.imwrite(f"images_uploaded/{filename.format('in')}", image)
     
     # 4. Stream response back to the client
     # open the saved image for reading in binary mode
